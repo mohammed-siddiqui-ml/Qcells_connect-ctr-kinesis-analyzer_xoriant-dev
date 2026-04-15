@@ -11,7 +11,7 @@ from common.sf_auth import get_access_token, sf_query
 from common.sf_utils import safe_json
 
 # =====================================================
-# DynamoDB setup
+# DynamoDB setup 
 # =====================================================
 
 dynamodb = boto3.resource("dynamodb")
