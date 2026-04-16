@@ -167,7 +167,6 @@ def update_task(ctr):
     Owner_id = get_salesforce_user(Agent_Name_AWS)
 
     isNewCase = deep_get(ctr, "Attributes.isNewCaseCSE")
-    case_id = deep_get(ctr, "Attributes.caseId")
 
     task_data = {
         "Agent_Name__c": agent,
@@ -186,13 +185,16 @@ def update_task(ctr):
     }
 
     task_id = None
+    case_id = None
     if initiation_method == "INBOUND":
         print("Update CSE task form")
         task_id = deep_get(ctr, "Attributes.cseTaskId")
+        case_id = deep_get(ctr, "Attributes.cseCaseId")
     elif initiation_method == "TRANSFER":
         print("Update FAE task form")
         task_id = deep_get(ctr, "Attributes.faeTaskId")
-    
+        case_id = deep_get(ctr, "Attributes.faeCaseId")
+
     # Get access token using shared function
     token_res = get_access_token()
 
@@ -233,8 +235,9 @@ def now_utc():
 def get_ttl_epoch() -> int:
     """
     Returns Unix epoch timestamp 30 days from now for DynamoDB TTL.
+    Changed to 1 day just for testing.
     """
-    return int((datetime.now(timezone.utc) + timedelta(days=30)).timestamp())
+    return int((datetime.now(timezone.utc) + timedelta(days=1)).timestamp())
 
 def deep_get(d, path):
     cur = d
@@ -341,8 +344,10 @@ def update_summary(root_id, ctr):
 
     if initiation_method == "INBOUND":
         task_form_id = deep_get(ctr, "Attributes.cseTaskId")
+        case_id = deep_get(ctr, "Attributes.cseCaseId")
     elif initiation_method == "TRANSFER":
         task_form_id = deep_get(ctr, "Attributes.faeTaskId")
+        case_id = deep_get(ctr, "Attributes.faeCaseId")
 
     queue_name = deep_get(ctr, "Queue.Name")
     agent = deep_get(ctr, "Agent.Username")
@@ -356,9 +361,6 @@ def update_summary(root_id, ctr):
 
     # Set lastLeave whenever this agent's CTR has a DisconnectTimestamp (root or child)
     agent_leave_ts = disconnect_ts if agent and disconnect_ts else None
-
-    # caseId support (read from top-level or Attributes.caseId)
-    case_id = ctr.get("caseId") or deep_get(ctr, "Attributes.caseId")
 
     # Recording URL (Recording.Location preferred, otherwise first AVAILABLE in Recordings[])
     recording_url = extract_recording_url(ctr)
@@ -465,6 +467,10 @@ def update_summary(root_id, ctr):
             expr.append("#agents.#a.TaskFormId = :tfid")
             values[":tfid"] = task_form_id
 
+        if case_id:
+            expr.append("#agents.#a.caseId = :tfid")
+            values[":tfid"] = case_id
+
         if agent_join_ts:
             expr.append("#agents.#a.firstJoin = if_not_exists(#agents.#a.firstJoin, :jts)")
             values[":jts"] = agent_join_ts
@@ -483,11 +489,6 @@ def update_summary(root_id, ctr):
     if not ctr.get("PreviousContactId") and ctr.get("DisconnectTimestamp"):
         expr.append("CallEndedTs = if_not_exists(CallEndedTs, :end)")
         values[":end"] = ctr["DisconnectTimestamp"]
-
-    # caseId at root (latest wins)
-    if case_id:
-        expr.append("CaseId = :case")
-        values[":case"] = case_id
 
     expr.append("LastUpdated = :now")
 
