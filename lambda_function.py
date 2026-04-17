@@ -468,7 +468,7 @@ def update_summary(root_id, ctr):
             values[":tfid"] = task_form_id
 
         if case_id:
-            expr.append("#agents.#a.caseId = :caseid")
+            expr.append("#agents.#a.CaseId = :caseid")
             values[":caseid"] = case_id
 
         if agent_join_ts:
