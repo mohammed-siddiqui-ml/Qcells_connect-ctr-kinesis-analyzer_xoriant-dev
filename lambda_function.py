@@ -235,9 +235,8 @@ def now_utc():
 def get_ttl_epoch() -> int:
     """
     Returns Unix epoch timestamp 30 days from now for DynamoDB TTL.
-    Changed to 1 day just for testing.
     """
-    return int((datetime.now(timezone.utc) + timedelta(days=1)).timestamp())
+    return int((datetime.now(timezone.utc) + timedelta(days=30)).timestamp())
 
 def deep_get(d, path):
     cur = d
